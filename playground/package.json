@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "formik": "^2.4.2",
+    "humps": "^2.0.1",
+    "react-number-format": "^5.2.2",
+    "react-select": "^5.7.3"
+  }
+}

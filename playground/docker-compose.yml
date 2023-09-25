@@ -1,0 +1,26 @@
+version: "3"
+services:
+  pools-playground-frontend:
+    image: react-app
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    stdin_open: true
+    ports:
+      - "80:80"
+    restart: always
+    depends_on:
+      - pools-playground-backend
+    networks:
+      - mern-app
+
+  pools-playground-backend:
+    image: api-server
+    build: ./server
+    restart: always
+    networks:
+      - mern-app
+
+networks:
+  mern-app:
+    driver: bridge

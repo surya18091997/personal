@@ -1,0 +1,30 @@
+version: "3"
+services:
+  react-app:
+    image: react-app
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    stdin_open: true
+    ports:
+      - "80:80"
+    restart: always
+    depends_on:
+      - api-server
+    networks:
+      - mern-app
+
+  api-server:
+    image: api-server
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./server/qa.env
+    networks:
+      - mern-app
+
+networks:
+  mern-app:
+    driver: bridge

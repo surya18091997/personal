@@ -1,0 +1,48 @@
+version: "3"
+services:
+  react-app:
+    image: react-app-test
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    stdin_open: true
+    depends_on:
+      - api-server
+    networks:
+      - mern-app
+    restart: always
+    volumes:
+      - ./client/:/app
+      - /app/node_modules
+
+  api-server:
+    image: api-server-test
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    env_file:
+      - ./server/qa.env
+    networks:
+      - mern-app
+    restart: always
+    volumes:
+      - ./server/:/app
+      - /app/node_modules
+
+  nginx:
+    image: nginx:1.21-alpine
+    container_name: nginx_test
+    volumes:
+      - ./client/nginx/test.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    networks:
+      - mern-app
+    restart: always
+    depends_on:
+      - react-app
+      - api-server
+
+networks:
+  mern-app:
+    driver: bridge
