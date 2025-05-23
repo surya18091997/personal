@@ -1,0 +1,43 @@
+FROM us-docker.pkg.dev/wmt-bfdms/bfdms-serverless-spark/bfdms-serverless-spark-1-2:latest
+
+USER root
+# Suppress interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+# (Required) Install utilities required by Spark scripts.
+RUN apt update && apt install -y procps tini libjemalloc2
+# Enable jemalloc2 as default memory allocator
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+## Instantiating environment variables
+ENV SPARK_EXTRA_JARS_DIR=/opt/spark/jars/
+ENV SPARK_EXTRA_CLASSPATH='/opt/spark/jars/*'
+RUN mkdir -p "${SPARK_EXTRA_JARS_DIR}"
+RUN wget -P /opt/spark/jars https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3.5-bundle_2.12/0.15.0/hudi-spark3.5-bundle_2.12-0.15.0.jar
+#RUN wget -P /opt/spark/jars https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar
+#RUN wget -P /opt/spark/jars https://github.com/GoogleCloudDataproc/spark-bigquery-connector/releases/download/0.41.0/spark-bigquery-with-dependencies_2.12-0.41.0.jar
+RUN wget -P /opt/spark/jars https://repo1.maven.org/maven2/com/azure/cosmos/spark/azure-cosmos-spark_3-5_2-12/4.37.0/azure-cosmos-spark_3-5_2-12-4.37.0.jar
+# Set the working directory
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+ENV CONDA_HOME=/opt/miniforge3
+ENV PATH=${CONDA_HOME}/bin:${PATH}
+ADD https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh .
+RUN bash /app/Miniforge3-Linux-x86_64.sh -b -p /opt/miniforge3 \
+  && ${CONDA_HOME}/bin/conda config --system --set always_yes True \
+  && ${CONDA_HOME}/bin/conda config --system --set auto_update_conda False \
+  && ${CONDA_HOME}/bin/conda config --system --set channel_priority strict
+RUN ${CONDA_HOME}/bin/conda create -n myenv python=3.12.8
+ENV PATH=${CONDA_HOME}/envs/myenv/bin:${PATH}
+ENV PYSPARK_PYTHON=${CONDA_HOME}/envs/myenv/bin/python
+RUN ${CONDA_HOME}/bin/mamba install ipython ipykernel
+RUN ${PYSPARK_PYTHON} -m pip --default-timeout=9999999 install --upgrade pip
+RUN ${PYSPARK_PYTHON} -m pip cache purge
+RUN ${PYSPARK_PYTHON} -m pip --default-timeout=9999999 install --no-cache-dir -i https://pypi.ci.artifacts.c.com/artifactory/api/pypi/gbs-peoplebenefitsdomain-pypi/simple -r /app/requirements.txt
+# Copy project files
+COPY src /app/src
+COPY main.py /app/main.py
+RUN mkdir -p /etc/secrets && \
+    chown -R spark:spark /etc/secrets && \
+    chmod 755 /etc/secrets
+
+RUN chown -R spark:spark .
+USER spark
